@@ -690,7 +690,16 @@ app.get("/api/filter-fc-diff-prev-curr", async(req, res) => {
         if (prd_series == 'Series') {
             // const prd_name = req.query.prd_name;
             const result = await client.query(
-                `select	'20' || substring(DB_QUE.wk, 3, 4) as pfd_period_no,
+                `select DB_ALL.pfd_period_no,
+                DB_ALL.wk,
+                DB_ALL.prd_name,
+                case when (select max(pf.pfd_period_no) from pln_fc pf 
+                            where pf.pfd_period_no = (SELECT substring(TO_CHAR(CURRENT_DATE - INTERVAL '0 days', 'YYYYWW'), 1, 6))) is null --check current period no data
+                            and DB_ALL.pfd_period_no = (SELECT substring(TO_CHAR(CURRENT_DATE - INTERVAL '0 days', 'YYYYWW'), 1, 6)) -- check current period 
+                            then '0' else DB_ALL.qty_fc end as qty_fc
+                from 
+                (
+                select	'20' || substring(DB_QUE.wk, 3, 4) as pfd_period_no,
                         DB_QUE.wk,
                         DB_QUE.prd_name,
                         sum(DB_QUE.qty_fc) as qty_fc
@@ -721,45 +730,126 @@ app.get("/api/filter-fc-diff-prev-curr", async(req, res) => {
                 AND pf.prd_name like $1 || '%'
                 and SUBSTR(pf.wk, 3, 4) <= (SELECT SUBSTR(TO_CHAR(CURRENT_DATE + INTERVAL '0 DAYS', 'YYYYWW'), 3, 4))
                 ) DB_QUE
-                GROUP by DB_QUE.wk, DB_QUE.prd_name`, [prd_name]
+                GROUP by DB_QUE.wk, DB_QUE.prd_name
+                union
+                select 	DB_QUE.pfd_period_no,
+                        DB_QUE.wk,
+                        DB_QUE.prd_name,
+                        sum(DB_QUE.qty_fc) as qty_fc
+                from 
+                (select	(SELECT substring(TO_CHAR(CURRENT_DATE - INTERVAL '0 days', 'YYYYWW'), 1, 6)) as pfd_period_no,
+                        pf.wk,
+                        pf.prd_name,
+                        -pf.qty_fc as qty_fc
+                from pln_fc pf
+                where pf.pfd_period_no >= (SELECT substring(TO_CHAR(CURRENT_DATE - INTERVAL '7 days', 'YYYYWW'), 1, 6))
+                and pf.pfd_period_no <= (SELECT substring(TO_CHAR(CURRENT_DATE - INTERVAL '7 days', 'YYYYWW'), 1, 6))
+                AND pf.prd_name like $1 || '%'
+                and SUBSTR(pf.wk, 3, 4) >= (SELECT SUBSTR(TO_CHAR(CURRENT_DATE + INTERVAL '7 DAYS', 'YYYYWW'), 3, 4))
+                and SUBSTR(pf.wk, 3, 4) <= (SELECT SUBSTR(TO_CHAR(CURRENT_DATE + INTERVAL '70 DAYS', 'YYYYWW'), 3, 4))
+                union
+                select	pf.pfd_period_no,
+                        pf.wk,
+                        pf.prd_name,
+                        pf.qty_fc as qty_fc
+                from pln_fc pf
+                where pf.pfd_period_no >= (SELECT substring(TO_CHAR(CURRENT_DATE - INTERVAL '0 days', 'YYYYWW'), 1, 6))
+                AND pf.prd_name like $1 || '%'
+                and SUBSTR(pf.wk, 3, 4) >= (SELECT SUBSTR(TO_CHAR(CURRENT_DATE + INTERVAL '7 DAYS', 'YYYYWW'), 3, 4))
+                and SUBSTR(pf.wk, 3, 4) <= (SELECT SUBSTR(TO_CHAR(CURRENT_DATE + INTERVAL '70 DAYS', 'YYYYWW'), 3, 4))) DB_QUE
+                group by DB_QUE.pfd_period_no,
+                        DB_QUE.wk,
+                        DB_QUE.prd_name
+                ) DB_ALL
+                order by DB_ALL.pfd_period_no
+                            ,DB_ALL.wk`, [prd_name]
             );
             client.release();
             res.json(result.rows);
         } else {
             const prd_name = req.query.prd_name;
             const result = await client.query(
-                `select	'20' || substring(DB_QUE.wk, 3, 4) as pfd_period_no,
-                        DB_QUE.wk,
-                        DB_QUE.prd_name,
-                        sum(DB_QUE.qty_fc) as qty_fc
-                from (SELECT
+                `select 	DB_ALL.pfd_period_no,
+                DB_ALL.wk,
+                case when (select max(pf.pfd_period_no) from pln_fc pf 
+                    where pf.pfd_period_no = (SELECT substring(TO_CHAR(CURRENT_DATE - INTERVAL '0 days', 'YYYYWW'), 1, 6))) is null --check current period no data
+                    and DB_ALL.pfd_period_no = (SELECT substring(TO_CHAR(CURRENT_DATE - INTERVAL '0 days', 'YYYYWW'), 1, 6)) -- check current period 
+                    then '0' else DB_ALL.qty_fc end as qty_fc
+                from 
+                (
+                --prev=>curr
+                SELECT
+                    '20' || substring(DB_QUE.wk, 3, 4) as pfd_period_no,
+                    DB_QUE.wk,
+                    sum(DB_QUE.qty_fc) as qty_fc
+                FROM
+                (
+                    SELECT
                         pf.pfd_period_no,
                         pf.wk,
-                        pf.prd_name,
-                        pf.qty_fc,
+                        SUM(pf.qty_fc) as qty_fc,
                         NULL as update_datetime,
                         NULL as id
-                from pln_fc pf
-                where pf.pfd_period_no <= (SELECT substring(TO_CHAR(CURRENT_DATE + INTERVAL '70 days', 'YYYYWW'), 1, 6))
-                AND pf.pfd_period_no >= (SELECT substring(TO_CHAR(CURRENT_DATE - INTERVAL '84 days', 'YYYYWW'), 1, 6))
-                AND pf.pfd_period_no = '20' || substring(pf.wk, 3, 4)
-                AND pf.prd_series like $1 || '%'
-                and SUBSTR(pf.wk, 3, 4) <= (SELECT SUBSTR(TO_CHAR(CURRENT_DATE + INTERVAL '0 DAYS', 'YYYYWW'), 3, 4))
-                UNION
-                select	TO_CHAR(TO_DATE('20' || substring(pf.wk, 3, 4), 'YYYYWW') - INTERVAL '7 days', 'YYYYWW'),
+                    FROM pln_fc pf
+                    WHERE pf.pfd_period_no <= (SELECT substring(TO_CHAR(CURRENT_DATE + INTERVAL '70 days', 'YYYYWW'), 1, 6))
+                    AND pf.pfd_period_no >= (SELECT substring(TO_CHAR(CURRENT_DATE - INTERVAL '84 days', 'YYYYWW'), 1, 6))
+                    AND pf.pfd_period_no = '20' || substring(pf.wk, 3, 4)
+                    AND pf.prd_series like $1 || '%'
+                    AND SUBSTR(pf.wk, 3, 4) <= (SELECT SUBSTR(TO_CHAR(CURRENT_DATE + INTERVAL '0 DAYS', 'YYYYWW'), 3, 4))
+                    GROUP BY pf.pfd_period_no, pf.wk
+                    UNION
+                    SELECT
+                        TO_CHAR(TO_DATE('20' || substring(pf.wk, 3, 4), 'YYYYWW') - INTERVAL '7 days', 'YYYYWW'),
                         pf.wk,
-                        pf.prd_name,
-                        -pf.qty_fc,
-                        pf.update_datetime,
-                        pf.id
-                from pln_fc pf
-                where pf.pfd_period_no <= (SELECT substring(TO_CHAR(CURRENT_DATE + INTERVAL '70 days', 'YYYYWW'), 1, 6))
-                AND pf.pfd_period_no >= (SELECT substring(TO_CHAR(CURRENT_DATE - INTERVAL '84 days', 'YYYYWW'), 1, 6))
-                AND pf.pfd_period_no = TO_CHAR(TO_DATE('20' || substring(pf.wk, 3, 4), 'YYYYWW') - INTERVAL '7 days', 'YYYYWW')
-                AND pf.prd_series like $1 || '%'
-                and SUBSTR(pf.wk, 3, 4) <= (SELECT SUBSTR(TO_CHAR(CURRENT_DATE + INTERVAL '0 DAYS', 'YYYYWW'), 3, 4))
+                        SUM(-pf.qty_fc) as qty_fc,
+                        NULL as update_datetime,
+                        NULL as id
+                    FROM pln_fc pf
+                    WHERE pf.pfd_period_no <= (SELECT substring(TO_CHAR(CURRENT_DATE + INTERVAL '70 days', 'YYYYWW'), 1, 6))
+                    AND pf.pfd_period_no >= (SELECT substring(TO_CHAR(CURRENT_DATE - INTERVAL '84 days', 'YYYYWW'), 1, 6))
+                    AND pf.pfd_period_no = TO_CHAR(TO_DATE('20' || substring(pf.wk, 3, 4), 'YYYYWW') - INTERVAL '7 days', 'YYYYWW')
+                    AND pf.prd_series like $1 || '%'
+                    AND SUBSTR(pf.wk, 3, 4) <= (SELECT SUBSTR(TO_CHAR(CURRENT_DATE + INTERVAL '0 DAYS', 'YYYYWW'), 3, 4))
+                    GROUP BY pf.pfd_period_no, pf.wk
                 ) DB_QUE
-                GROUP by DB_QUE.wk, DB_QUE.prd_name`, [prd_series]
+                GROUP BY '20' || substring(DB_QUE.wk, 3, 4), DB_QUE.wk
+                union
+                --curr=>next
+                SELECT
+                    DB_QUE.pfd_period_no,
+                    DB_QUE.wk,
+                    sum(DB_QUE.qty_fc) as qty_fc
+                from
+                (
+                SELECT
+                    (SELECT substring(TO_CHAR(CURRENT_DATE - INTERVAL '0 days', 'YYYYWW'), 1, 6)) as pfd_period_no,
+                    pf.wk,
+                    SUM(-pf.qty_fc) as qty_fc,
+                    NULL as update_datetime,
+                    NULL as id
+                FROM pln_fc pf
+                WHERE pf.pfd_period_no >= (SELECT substring(TO_CHAR(CURRENT_DATE - INTERVAL '7 days', 'YYYYWW'), 1, 6))
+                    AND pf.pfd_period_no <= (SELECT substring(TO_CHAR(CURRENT_DATE - INTERVAL '7 days', 'YYYYWW'), 1, 6))
+                    AND pf.prd_series like $1 || '%'
+                    AND SUBSTR(pf.wk, 3, 4) >= (SELECT SUBSTR(TO_CHAR(CURRENT_DATE + INTERVAL '7 DAYS', 'YYYYWW'), 3, 4))
+                    AND SUBSTR(pf.wk, 3, 4) <= (SELECT SUBSTR(TO_CHAR(CURRENT_DATE + INTERVAL '70 DAYS', 'YYYYWW'), 3, 4))
+                GROUP BY pf.pfd_period_no, pf.wk
+                UNION
+                SELECT
+                    pf.pfd_period_no,
+                    pf.wk,
+                    SUM(pf.qty_fc) as qty_fc,
+                    NULL as update_datetime,
+                    NULL as id
+                FROM pln_fc pf
+                WHERE pf.pfd_period_no >= (SELECT substring(TO_CHAR(CURRENT_DATE - INTERVAL '0 days', 'YYYYWW'), 1, 6))
+                    AND pf.prd_series like $1 || '%'
+                    AND SUBSTR(pf.wk, 3, 4) >= (SELECT SUBSTR(TO_CHAR(CURRENT_DATE + INTERVAL '7 DAYS', 'YYYYWW'), 3, 4))
+                    AND SUBSTR(pf.wk, 3, 4) <= (SELECT SUBSTR(TO_CHAR(CURRENT_DATE + INTERVAL '70 DAYS', 'YYYYWW'), 3, 4))
+                GROUP BY pf.pfd_period_no, pf.wk) DB_QUE
+                GROUP BY DB_QUE.pfd_period_no, DB_QUE.wk
+                ) DB_ALL
+                order by DB_ALL.pfd_period_no , DB_ALL.wk`, [prd_series]
             );
             client.release();
             res.json(result.rows);

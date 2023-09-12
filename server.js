@@ -859,3 +859,32 @@ app.get("/api/filter-fc-diff-prev-curr", async(req, res) => {
         res.status(500).json({ error: "Internal server error" });
     }
 });
+
+//Plannig Forecast Vs PO
+//Filter_PO_bal_only
+app.get("/api/filter-po-bal-detail-product-series", async(req, res) => {
+    try {
+        const client = await pool.connect();
+        const prd_name = req.query.prd_name;
+        const prd_series = req.query.prd_series;
+
+        if (prd_series == 'Series') {
+            // const prd_name = req.query.prd_name;
+            const result = await client.query(
+                ``, [prd_name]
+            );
+            client.release();
+            res.json(result.rows);
+        } else {
+            // const prd_name = req.query.prd_name;
+            const result = await client.query(
+                ``, [prd_series]
+            );
+            client.release();
+            res.json(result.rows);
+        }
+    } catch (error) {
+        console.error("Error executing query", error);
+        res.status(500).json({ error: "Internal server error" });
+    }
+});

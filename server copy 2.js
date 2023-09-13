@@ -2,7 +2,7 @@ const express = require('express');
 const { Pool } = require('pg');
 const cors = require('cors'); // Import the cors middleware
 const app = express();
-const port = process.env.PORT || 3000;
+const port = process.env.PORT || 3002;
 app.use(cors()); // Enable CORS for all routes
 // Replace with your PostgreSQL connection string
 const connectionString = 'postgres://postgres:systemfetl@10.17.66.112:5432/postgres_smartfactory';
@@ -18,7 +18,7 @@ pool.connect((err, client, done) => {
         console.error('Error connecting to PostgreSQL:', err);
         return;
     }
-    console.log('Connected to PostgreSQL SmartFactory');
+    console.log('Connected to PostgreSQL');
 
     // Release the client back to the pool
     done();
@@ -244,7 +244,7 @@ app.get("/api/filter-po-bal-product-series", async(req, res) => {
         console.error("Error executing query", error);
         res.status(500).json({ error: "Internal server error" });
     }
-})
+});
 
 //Plannig Forecast Vs PO
 //Filter_actual_ship_summary
@@ -285,7 +285,7 @@ app.get("/api/filter-actual-ship-summary-product-series", async(req, res) => {
         console.error("Error executing query", error);
         res.status(500).json({ error: "Internal server error" });
     }
-})
+});
 
 //Plannig Forecast Vs PO
 //Filter_product_for_show
@@ -322,7 +322,7 @@ app.get("/api/filter-show-product-series", async(req, res) => {
         console.error("Error executing query", error);
         res.status(500).json({ error: "Internal server error" });
     }
-})
+});
 
 //Plannig Forecast Vs PO
 //Filter_product_for_show
@@ -503,7 +503,7 @@ app.get("/api/filter-fc-diff-prev-curr", async(req, res) => {
         console.error("Error executing query", error);
         res.status(500).json({ error: "Internal server error" });
     }
-})
+});
 
 //Plannig Forecast Vs PO
 //Filter_PO_bal_only
@@ -516,20 +516,14 @@ app.get("/api/filter-po-bal-detail-product-series", async(req, res) => {
         if (prd_series == 'Series') {
             // const prd_name = req.query.prd_name;
             const result = await client.query(
-                `select *
-                from pln.pln_pobal_detail ppd 
-                where ppd.prd_name like $1 || '%'
-                order by ppd.due_date ASC, ppd.prd_name , ppd.so_line , ppd.so_no`, [prd_name]
+                ``, [prd_name]
             );
             client.release();
             res.json(result.rows);
         } else {
             // const prd_name = req.query.prd_name;
             const result = await client.query(
-                `select *
-                from pln.pln_pobal_detail ppd 
-                where ppd.prd_series like $1 || '%'
-                order by ppd.due_date ASC, ppd.prd_name , ppd.so_line , ppd.so_no`, [prd_series]
+                ``, [prd_series]
             );
             client.release();
             res.json(result.rows);
@@ -538,4 +532,4 @@ app.get("/api/filter-po-bal-detail-product-series", async(req, res) => {
         console.error("Error executing query", error);
         res.status(500).json({ error: "Internal server error" });
     }
-})
+});

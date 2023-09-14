@@ -575,3 +575,41 @@ app.get("/api/filter-wip-pending-product-series", async(req, res) => {
         res.status(500).json({ error: "Internal server error" });
     }
 })
+
+//Plannig Forecast Vs PO
+//Filter_FG_Unmovement
+app.get("/api/filter-fg-unmovement-product-series", async(req, res) => {
+    try {
+        const client = await pool.connect();
+        const prd_name = req.query.prd_name;
+        const prd_series = req.query.prd_series;
+
+        if (prd_series == 'Series') {
+            // const prd_name = req.query.prd_name;
+            const result = await client.query(
+                `select  pfu.wk
+                        ,sum(pfu.qty_hold) as qty_hold
+                from pln.pln_fg_unmovement pfu 
+                where pfu.prd_name like $1 || '%'
+                group by pfu.wk `, [prd_name]
+            );
+            client.release();
+            res.json(result.rows);
+        } else {
+            // const prd_name = req.query.prd_name;
+            const result = await client.query(
+                `select pfu.wk
+                        ,pfu.prd_series
+                        ,sum(pfu.qty_hold) as qty_hold
+                from pln.pln_fg_unmovement pfu 
+                where pfu.prd_series like $1 || '%'
+                group by pfu.wk , pfu.prd_series`, [prd_series]
+            );
+            client.release();
+            res.json(result.rows);
+        }
+    } catch (error) {
+        console.error("Error executing query", error);
+        res.status(500).json({ error: "Internal server error" });
+    }
+})

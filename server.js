@@ -539,3 +539,39 @@ app.get("/api/filter-po-bal-detail-product-series", async(req, res) => {
         res.status(500).json({ error: "Internal server error" });
     }
 })
+
+//Plannig Forecast Vs PO
+//Filter_WIP_Pending
+app.get("/api/filter-wip-pending-product-series", async(req, res) => {
+    try {
+        const client = await pool.connect();
+        const prd_name = req.query.prd_name;
+        const prd_series = req.query.prd_series;
+
+        if (prd_series == 'Series') {
+            // const prd_name = req.query.prd_name;
+            const result = await client.query(
+                `select  sum(pwp.qty_pending) as qty_pending
+                from pln.pln_wip_pending pwp 
+                where pwp.prd_name like $1 || '%'
+                group by pwp.prd_series`, [prd_name]
+            );
+            client.release();
+            res.json(result.rows);
+        } else {
+            // const prd_name = req.query.prd_name;
+            const result = await client.query(
+                `select pwp.prd_series 
+                        ,sum(pwp.qty_pending) as qty_pending
+                from pln.pln_wip_pending pwp 
+                where pwp.prd_series like $1 || '%'
+                group by pwp.prd_series`, [prd_series]
+            );
+            client.release();
+            res.json(result.rows);
+        }
+    } catch (error) {
+        console.error("Error executing query", error);
+        res.status(500).json({ error: "Internal server error" });
+    }
+})

@@ -615,7 +615,7 @@ app.get("/api/filter-fg-unmovement-product-series", async(req, res) => {
 })
 
 //Plannig Forecast Vs PO
-//Filter_FG_Unmovement
+//Filter_FG_Details
 app.get("/api/filter-fg-details-product-series", async(req, res) => {
     try {
         const client = await pool.connect();
@@ -651,6 +651,104 @@ app.get("/api/filter-fg-details-product-series", async(req, res) => {
                 where pfd.prd_series like $1 || '%'
                 and pfd.qty_good > 0
                 order by pfd.prd_name  , pfd.ld_loc`, [prd_series]
+            );
+            client.release();
+            res.json(result.rows);
+        }
+    } catch (error) {
+        console.error("Error executing query", error);
+        res.status(500).json({ error: "Internal server error" });
+    }
+})
+
+//Plannig Forecast Vs PO
+//Filter_FG_Unmovement_details
+app.get("/api/filter-fg-unmovement-details-product-series", async(req, res) => {
+    try {
+        const client = await pool.connect();
+        const prd_name = req.query.prd_name;
+        const prd_series = req.query.prd_series;
+
+        if (prd_series == 'Series') {
+            // const prd_name = req.query.prd_name;
+            const result = await client.query(
+                `select pfu.wk 
+                    ,pfu.prd_name 
+                    ,pfu.prd_series 
+                    ,pfu.ld_loc 
+                    ,pfu.ld_status
+                    ,pfu.qty_hold 
+                from pln.pln_fg_unmovement pfu 
+                where pfu.prd_name like $1 || '%'
+                and pfu.qty_hold > 0
+                order by pfu.prd_name , pfu.ld_loc`, [prd_name]
+            );
+            client.release();
+            res.json(result.rows);
+        } else {
+            // const prd_name = req.query.prd_name;
+            const result = await client.query(
+                `select 	pfu.wk 
+                    ,pfu.prd_name 
+                    ,pfu.prd_series 
+                    ,pfu.ld_loc 
+                    ,pfu.ld_status
+                    ,pfu.qty_hold 
+                from pln.pln_fg_unmovement pfu 
+                where pfu.prd_series like $1 || '%'
+                and pfu.qty_hold > 0
+                order by pfu.prd_name , pfu.ld_loc`, [prd_series]
+            );
+            client.release();
+            res.json(result.rows);
+        }
+    } catch (error) {
+        console.error("Error executing query", error);
+        res.status(500).json({ error: "Internal server error" });
+    }
+})
+
+//Plannig Forecast Vs PO
+//Filter_WIP_Pending_Details
+app.get("/api/filter-wip-pending-detail-product-series", async(req, res) => {
+    try {
+        const client = await pool.connect();
+        const prd_name = req.query.prd_name;
+        const prd_series = req.query.prd_series;
+
+        if (prd_series == 'Series') {
+            // const prd_name = req.query.prd_name;
+            const result = await client.query(
+                `select pwpd.prd_name 
+                    ,pwpd.lot 
+                    ,pwpd.prd_series 
+                    ,pwpd.factory 
+                    ,pwpd.unit 
+                    ,pwpd.process 
+                    ,pwpd.pending_reason 
+                    ,pwpd.qty_pending 
+                from pln.pln_wip_pending_details pwpd 
+                where pwpd.prd_name like $1 || '%'
+                and pwpd.qty_pending > 0
+                order by pwpd.prd_name , pwpd.lot , pwpd.unit , pwpd.process`, [prd_name]
+            );
+            client.release();
+            res.json(result.rows);
+        } else {
+            // const prd_name = req.query.prd_name;
+            const result = await client.query(
+                `select pwpd.prd_name 
+                    ,pwpd.lot 
+                    ,pwpd.prd_series 
+                    ,pwpd.factory 
+                    ,pwpd.unit 
+                    ,pwpd.process 
+                    ,pwpd.pending_reason 
+                    ,pwpd.qty_pending 
+                from pln.pln_wip_pending_details pwpd 
+                where pwpd.prd_series like $1 || '%'
+                and pwpd.qty_pending > 0
+                order by pwpd.prd_name , pwpd.lot , pwpd.unit , pwpd.process`, [prd_series]
             );
             client.release();
             res.json(result.rows);

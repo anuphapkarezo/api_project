@@ -758,3 +758,50 @@ app.get("/api/filter-wip-pending-detail-product-series", async(req, res) => {
         res.status(500).json({ error: "Internal server error" });
     }
 })
+
+//Plannig Forecast Vs PO
+//Filter_WIP_Details
+app.get("/api/filter-wip-detail-product-series", async(req, res) => {
+    try {
+        const client = await pool.connect();
+        const prd_name = req.query.prd_name;
+        const prd_series = req.query.prd_series;
+
+        if (prd_series == 'Series') {
+            // const prd_name = req.query.prd_name;
+            const result = await client.query(
+                `select pwd.prd_name
+                        ,pwd.prd_series
+                        ,pwd.factory
+                        ,pwd.unit
+                        ,pwd.process
+                        ,pwd.qty_wip_detail 
+                from pln.pln_wip_detail pwd 
+                where pwd.prd_name like $1 || '%'
+                and pwd.qty_wip_detail > 0
+                order by pwd.prd_name , pwd.factory , pwd.unit , pwd.process`, [prd_name]
+            );
+            client.release();
+            res.json(result.rows);
+        } else {
+            // const prd_name = req.query.prd_name;
+            const result = await client.query(
+                `select pwd.prd_name
+                        ,pwd.prd_series
+                        ,pwd.factory
+                        ,pwd.unit
+                        ,pwd.process
+                        ,pwd.qty_wip_detail 
+                from pln.pln_wip_detail pwd 
+                where pwd.prd_series like $1 || '%'
+                and pwd.qty_wip_detail > 0
+                order by pwd.prd_name , pwd.factory , pwd.unit , pwd.process`, [prd_series]
+            );
+            client.release();
+            res.json(result.rows);
+        }
+    } catch (error) {
+        console.error("Error executing query", error);
+        res.status(500).json({ error: "Internal server error" });
+    }
+})

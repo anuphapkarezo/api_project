@@ -38,24 +38,68 @@ app.listen(port, () => {
 //ProductList for Autocomplete
 app.get("/api/productlist", async(req, res) => {
     try {
+        `1`
         const client = await pool.connect();
         const result = await client.query(
-            `select * from 
-            (select DISTINCT pln_fc.prd_name 
-            from pln.pln_fc
+            `select DISTINCT DB.prd_name
+            from 
+            (select DISTINCT pf.prd_name 
+            from pln.pln_fc pf 
             union
-            select distinct pln_po_wip_fg.prd_name 
-            from pln.pln_po_wip_fg
+            select distinct ppwf.prd_name 
+            from pln.pln_po_wip_fg ppwf 
+            union
+            select distinct pass.prd_name 
+            from pln.pln_actual_ship_summary pass 
+            union
+            select distinct pfd.prd_name 
+            from pln.pln_fg_detail pfd
+            union
+            select distinct pfu.prd_name 
+            from pln.pln_fg_unmovement pfu 
+            union
+            select distinct ppd.prd_name 
+            from pln.pln_pobal_detail ppd 
+            union
+            select distinct pwd.prd_name 
+            from pln.pln_wip_detail pwd 
+            union
+            select distinct pwp.prd_name 
+            from pln.pln_wip_pending pwp 
+            union
+            select distinct pwpd.prd_name 
+            from pln.pln_wip_pending_details pwpd 
             union
             SELECT distinct 
             case when substring(DB1.prd_name , 4 , 1) = 'Z' then left(DB1.prd_name , 10)
             else left(DB1.prd_name , 8) end as prd_name
             FROM (
-                SELECT DISTINCT pln_fc.prd_name 
-                FROM pln.pln_fc
-                UNION
-                SELECT DISTINCT pln_po_wip_fg.prd_name 
-                FROM pln.pln_po_wip_fg
+                select DISTINCT pf.prd_name 
+                from pln.pln_fc pf 
+                union
+                select distinct ppwf.prd_name 
+                from pln.pln_po_wip_fg ppwf 
+                union
+                select distinct pass.prd_name 
+                from pln.pln_actual_ship_summary pass 
+                union
+                select distinct pfd.prd_name 
+                from pln.pln_fg_detail pfd
+                union
+                select distinct pfu.prd_name 
+                from pln.pln_fg_unmovement pfu 
+                union
+                select distinct ppd.prd_name 
+                from pln.pln_pobal_detail ppd 
+                union
+                select distinct pwd.prd_name 
+                from pln.pln_wip_detail pwd 
+                union
+                select distinct pwp.prd_name 
+                from pln.pln_wip_pending pwp 
+                union
+                select distinct pwpd.prd_name 
+                from pln.pln_wip_pending_details pwpd 
             ) DB1 ) DB
             order by DB.prd_name`
         );
@@ -760,7 +804,7 @@ app.get("/api/filter-wip-pending-detail-product-series", async(req, res) => {
 })
 
 //Plannig Forecast Vs PO
-//Filter_WIP_Details
+//Filter_WIP_Details_OK
 app.get("/api/filter-wip-detail-product-series", async(req, res) => {
     try {
         const client = await pool.connect();
@@ -777,7 +821,8 @@ app.get("/api/filter-wip-detail-product-series", async(req, res) => {
                         ,pwd.process
                         ,pwd.qty_wip_detail 
                 from pln.pln_wip_detail pwd 
-                where pwd.prd_name like $1 || '%'
+                where (LENGTH($1) <= 10 AND pwd.prd_name LIKE $1 || '%')
+                        OR (LENGTH($1) > 10 AND pwd.prd_name = $1)
                 and pwd.qty_wip_detail > 0
                 order by pwd.prd_name , pwd.factory , pwd.unit , pwd.process`, [prd_name]
             );

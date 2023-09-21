@@ -342,11 +342,69 @@ app.get("/api/filter-show-product-series", async(req, res) => {
         if (prd_series == 'Series') {
             // const prd_name = req.query.prd_name;
             const result = await client.query(
-                `select distinct ppwf.prd_name 
-                from  pln.pln_po_wip_fg ppwf 
-                where ppwf.prd_name like $1 || '%'
-                and substring(ppwf.wk,3,4)  >= (SELECT substring(TO_CHAR(CURRENT_DATE - INTERVAL '84 days', 'YYYYWW'),3,4))
-                and substring(ppwf.wk,3,4)  <= (SELECT substring(TO_CHAR(CURRENT_DATE + INTERVAL '70 days', 'YYYYWW'),3,4))`, [prd_name]
+                `select DISTINCT DB.prd_name
+                from 
+                (select DISTINCT pf.prd_name 
+                from pln.pln_fc pf 
+                union
+                select distinct ppwf.prd_name 
+                from pln.pln_po_wip_fg ppwf 
+                union
+                select distinct pass.prd_name 
+                from pln.pln_actual_ship_summary pass 
+                union
+                select distinct pfd.prd_name 
+                from pln.pln_fg_detail pfd
+                union
+                select distinct pfu.prd_name 
+                from pln.pln_fg_unmovement pfu 
+                union
+                select distinct ppd.prd_name 
+                from pln.pln_pobal_detail ppd 
+                union
+                select distinct pwd.prd_name 
+                from pln.pln_wip_detail pwd 
+                union
+                select distinct pwp.prd_name 
+                from pln.pln_wip_pending pwp 
+                union
+                select distinct pwpd.prd_name 
+                from pln.pln_wip_pending_details pwpd 
+                union
+                SELECT distinct 
+                case when substring(DB1.prd_name , 4 , 1) = 'Z' then left(DB1.prd_name , 10)
+                else left(DB1.prd_name , 8) end as prd_name
+                FROM (
+                    select DISTINCT pf.prd_name 
+                    from pln.pln_fc pf 
+                    union
+                    select distinct ppwf.prd_name 
+                    from pln.pln_po_wip_fg ppwf 
+                    union
+                    select distinct pass.prd_name 
+                    from pln.pln_actual_ship_summary pass 
+                    union
+                    select distinct pfd.prd_name 
+                    from pln.pln_fg_detail pfd
+                    union
+                    select distinct pfu.prd_name 
+                    from pln.pln_fg_unmovement pfu 
+                    union
+                    select distinct ppd.prd_name 
+                    from pln.pln_pobal_detail ppd 
+                    union
+                    select distinct pwd.prd_name 
+                    from pln.pln_wip_detail pwd 
+                    union
+                    select distinct pwp.prd_name 
+                    from pln.pln_wip_pending pwp 
+                    union
+                    select distinct pwpd.prd_name 
+                    from pln.pln_wip_pending_details pwpd 
+                ) DB1 ) DB
+                where DB.prd_name like $1 || '%'
+                and LENGTH(DB.prd_name) > 10
+                order by DB.prd_name`, [prd_name]
             );
             client.release();
             res.json(result.rows);

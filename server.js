@@ -872,33 +872,37 @@ app.get("/api/filter-wip-detail-product-series", async(req, res) => {
         if (prd_series == 'Series') {
             // const prd_name = req.query.prd_name;
             const result = await client.query(
-                `select pwd.prd_name
+                `select 	pwd.prd_name
                         ,pwd.prd_series
                         ,pwd.factory
                         ,pwd.unit
                         ,pwd.process
                         ,pwd.qty_wip_detail 
+                        ,pwd.ro_rev 
+                        ,pwd.ro_seq 
                 from pln.pln_wip_detail pwd 
-                where (LENGTH($1) <= 10 AND pwd.prd_name LIKE $1 || '%')
-                        OR (LENGTH($1) > 10 AND pwd.prd_name = $1)
+                where case when LENGTH($1) <= 10 then pwd.prd_name like $1 || '%'
+                        else pwd.prd_name = $1 end 
                 and pwd.qty_wip_detail > 0
-                order by pwd.prd_name , pwd.factory , pwd.unit , pwd.process`, [prd_name]
+                order by pwd.prd_name , pwd.ro_rev , pwd.ro_seq desc `, [prd_name]
             );
             client.release();
             res.json(result.rows);
         } else {
             // const prd_name = req.query.prd_name;
             const result = await client.query(
-                `select pwd.prd_name
+                `select 	pwd.prd_name
                         ,pwd.prd_series
                         ,pwd.factory
                         ,pwd.unit
                         ,pwd.process
                         ,pwd.qty_wip_detail 
+                        ,pwd.ro_rev 
+                        ,pwd.ro_seq 
                 from pln.pln_wip_detail pwd 
                 where pwd.prd_series like $1 || '%'
                 and pwd.qty_wip_detail > 0
-                order by pwd.prd_name , pwd.factory , pwd.unit , pwd.process`, [prd_series]
+                order by pwd.prd_name , pwd.ro_rev , pwd.ro_seq desc `, [prd_series]
             );
             client.release();
             res.json(result.rows);

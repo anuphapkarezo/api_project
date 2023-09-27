@@ -908,3 +908,46 @@ app.get("/api/filter-wip-detail-product-series", async(req, res) => {
         res.status(500).json({ error: "Internal server error" });
     }
 })
+
+//Plannig Forecast Vs PO
+//Filter_WIP_Details_OK
+app.get("/api/filter-fc-accuracy-product-series", async(req, res) => {
+    try {
+        const client = await pool.connect();
+        const prd_name = req.query.prd_name;
+        const prd_series = req.query.prd_series;
+
+        if (prd_series == 'Series') {
+            // const prd_name = req.query.prd_name;
+            const result = await client.query(
+                `select pfasb.wk 
+                        ,ROUND(avg(pfasb.fc_accuracy),2) as fc_accuracy 
+                from pln.pln_fc_accuracy_sale_branch pfasb 
+                where 	case when LENGTH($1) <= 10 then pfasb.prd_name like $1 || '%'
+                        else pfasb.prd_name = $1 end 
+                group by pfasb.wk
+                order by pfasb.wk`, [prd_name]
+            );
+            client.release();
+            res.json(result.rows);
+        } else {
+            // const prd_name = req.query.prd_name;
+            const result = await client.query(
+                `select pfasb.wk 
+                        --,LEFT(pfasb.prd_version, 3) AS prd_series
+                        --,pfasb.prd_version 
+                        ,ROUND(avg(pfasb.fc_accuracy),2) as fc_accuracy
+                from pln.pln_fc_accuracy_sale_branch pfasb 
+                where 	case when LENGTH($1) <= 10 then pfasb.prd_version like $1 || '%'
+                        else pfasb.prd_version = $1 end
+                group by pfasb.wk , LEFT(pfasb.prd_version, 3)
+                order by pfasb.wk`, [prd_series]
+            );
+            client.release();
+            res.json(result.rows);
+        }
+    } catch (error) {
+        console.error("Error executing query", error);
+        res.status(500).json({ error: "Internal server error" });
+    }
+})
